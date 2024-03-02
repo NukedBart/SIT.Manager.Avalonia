@@ -1,4 +1,5 @@
 ﻿using Avalonia.Controls.ApplicationLifetimes;
+using Microsoft.Extensions.Logging;
 using SIT.Manager.Avalonia.Interfaces;
 using SIT.Manager.Avalonia.ManagedProcess;
 using System;
@@ -9,6 +10,7 @@ namespace SIT.Manager.Avalonia.Services
 {
     public class TarkovClientService(IBarNotificationService barNotificationService,
                                      ILocalizationService localizationService,
+                                     ILogger<TarkovClientService> logger,
                                      IManagerConfigService configService) : ManagedProcess.ManagedProcess(barNotificationService, configService), ITarkovClientService
     {
         private const string TARKOV_EXE = "EscapeFromTarkov.exe";
@@ -16,6 +18,7 @@ namespace SIT.Manager.Avalonia.Services
 
         protected override string EXECUTABLE_NAME => TARKOV_EXE;
         private readonly ILocalizationService _localizationService = localizationService;
+        private readonly ILogger<TarkovClientService> _logger = logger;
 
         private void ClearModCache()
         {
@@ -73,11 +76,20 @@ namespace SIT.Manager.Avalonia.Services
                 _process.StartInfo.Arguments = $"\"{ExecutableFilePath}\" {arguments}";
                 _process.StartInfo.UseShellExecute = false;
 
+                _logger.LogInformation("File Name: {WineRunner}", _configService.Config.WinePrefix);
+                _logger.LogInformation("Arguments: {Arguments}", _process.StartInfo.Arguments);
+
                 string winePrefix = Path.GetFullPath(_configService.Config.WinePrefix);
                 if (!Path.EndsInDirectorySeparator(winePrefix)) {
                     winePrefix = $"{winePrefix}{Path.DirectorySeparatorChar}";
                 }
+                _logger.LogInformation("Wine Prefix: {winePrefix}", winePrefix);
                 _process.StartInfo.EnvironmentVariables.Add("WINEPREFIX", winePrefix);
+
+                _process.Exited += (o, e) =>
+                {
+                    _logger.LogInformation("Exited: {e}", e);
+                };
             }
             else {
                 _process.StartInfo.WorkingDirectory = ExecutableDirectory;
